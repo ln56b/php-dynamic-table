@@ -1,10 +1,26 @@
 <?php
+
+use App\NumberHelper;
+
 require 'vendor/autoload.php';
 $pdo = new PDO("sqlite:./products.db", null, null, [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
-$products = $pdo->query('SELECT * FROM products LIMIT 20')->fetchAll();
+
+$query = "SELECT * FROM products";
+$params = [];
+
+// Search by city
+if (!empty($_GET['q'])) {
+    $query .= " WHERE city LIKE :city";
+    $params['city'] = "%" . $_GET['q'] . "%";
+}
+$query .= " LIMIT 20";
+
+$statement = $pdo->prepare($query);
+$statement->execute($params);
+$products = $statement->fetchAll();
 ?>
 
 <!doctype html>
@@ -18,7 +34,16 @@ $products = $pdo->query('SELECT * FROM products LIMIT 20')->fetchAll();
           integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
     <title>Real estate</title>
 </head>
-<body>
+<body class="p-4">
+
+<h1>Real estate offers</h1>
+<form action="" class="mb-4">
+    <div class="form-group">
+        <input type="text" class="form-control" name="q" placeholder="Enter a city" value="<?= htmlentities($_GET['q']) ?? null ?>">
+    </div>
+    <button class="btn btn-primary">Search</button>
+</form>
+
 <table class="table table-striped">
     <thead>
     <tr>
@@ -30,15 +55,15 @@ $products = $pdo->query('SELECT * FROM products LIMIT 20')->fetchAll();
     </tr>
     </thead>
     <tbody>
-        <?php foreach ($products as $product): ?>
-            <tr>
-                <td>#<?= $product['id'] ?></td>
-                <td><?= $product['name'] ?></td>
-                <td><?= $product['price'] ?>€</td>
-                <td><?= $product['city'] ?></td>
-                <td><?= $product['address'] ?></td>
-            </tr>
-        <?php endforeach; ?>
+    <?php foreach ($products as $product): ?>
+        <tr>
+            <td>#<?= $product['id'] ?></td>
+            <td><?= $product['name'] ?></td>
+            <td><?= NumberHelper::price($product['price']) ?></td>
+            <td><?= $product['city'] ?></td>
+            <td><?= $product['address'] ?></td>
+        </tr>
+    <?php endforeach; ?>
     </tbody>
 </table>
 </body>
