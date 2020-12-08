@@ -1,6 +1,9 @@
 <?php
 
 use App\NumberHelper;
+use App\URLHelper;
+
+define('PER_PAGE', 20);
 
 require 'vendor/autoload.php';
 $pdo = new PDO("sqlite:./products.db", null, null, [
@@ -9,18 +12,30 @@ $pdo = new PDO("sqlite:./products.db", null, null, [
 ]);
 
 $query = "SELECT * FROM products";
+$queryCount = "SELECT COUNT(id) as count FROM products";
 $params = [];
 
 // Search by city
 if (!empty($_GET['q'])) {
     $query .= " WHERE city LIKE :city";
+    $queryCount .= " WHERE city LIKE :city";
     $params['city'] = "%" . $_GET['q'] . "%";
 }
-$query .= " LIMIT 20";
+
+// Pagination
+$page = (int)($_GET['p'] ?? 1);
+$offset = ($page - 1) * PER_PAGE;
+
+$query .= " LIMIT " . PER_PAGE . " OFFSET $offset";
 
 $statement = $pdo->prepare($query);
 $statement->execute($params);
 $products = $statement->fetchAll();
+
+$statement = $pdo->prepare($queryCount);
+$statement->execute($params);
+$count = (int)$statement->fetch()['count'];
+$pages = ceil($count / PER_PAGE);
 ?>
 
 <!doctype html>
@@ -39,7 +54,8 @@ $products = $statement->fetchAll();
 <h1>Real estate offers</h1>
 <form action="" class="mb-4">
     <div class="form-group">
-        <input type="text" class="form-control" name="q" placeholder="Enter a city" value="<?= htmlentities($_GET['q']) ?? null ?>">
+        <input type="text" class="form-control" name="q" placeholder="Enter a city"
+               value="<?= htmlentities($_GET['q'] ?? null) ?>">
     </div>
     <button class="btn btn-primary">Search</button>
 </form>
@@ -66,5 +82,11 @@ $products = $statement->fetchAll();
     <?php endforeach; ?>
     </tbody>
 </table>
+<?php if($page > 1): ?>
+    <a href="?<?= URLHelper::withParam("p", $page - 1) ?>" class="btn btn-primary">Previous page</a>
+<?php endif ?>
+<?php if ($pages > 1 && $page < $pages) : ?>
+    <a href="?<?= URLHelper::withParam("p", $page + 1) ?>" class="btn btn-primary">Next page</a>
+<?php endif ?>
 </body>
 </html>
