@@ -2,7 +2,8 @@
 
 namespace App;
 
-use phpDocumentor\Reflection\Types\Integer;
+use PDO;
+use\Exception;
 
 class QueryBuilder
 {
@@ -16,9 +17,8 @@ class QueryBuilder
     private $params = [];
     private $pdo;
 
-    public function __construct(?\PDO $pdo = null)
+    public function __construct(?PDO $pdo = null)
     {
-
         $this->pdo = $pdo;
     }
 
@@ -53,7 +53,9 @@ class QueryBuilder
 
     public function offset(int $offset): self
     {
-
+        if ($this->limit === null ) {
+            throw new Exception('Impossible to define offset if no limit has been defined.');
+        }
         $this->offset = $offset;
 
         return $this;
@@ -101,6 +103,17 @@ class QueryBuilder
             return null;
         }
         return $result[$field] ?? null;
+    }
+
+    public function fetchAll(): array
+    {
+        try {
+        $query = $this->pdo->prepare($this->toSQL());
+        $query->execute($this->params);
+        return $query->fetchAll();
+        } catch (\Exception $e) {
+            throw new \Exception("Impossible to do this request " . $this->toSQL() . " : " . $e->getMessage());
+        }
     }
 
     public function count(): int

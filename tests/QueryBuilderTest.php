@@ -62,6 +62,16 @@ final class QueryBuilderTest extends TestCase
         $this->assertEquals("SELECT * FROM users ORDER BY id DESC LIMIT 10 OFFSET 3", $q);
     }
 
+    public function testOffsetWithoutLimit()
+    {
+        $this->expectException(\Exception::class);
+        $this->getBuilder()
+            ->from("users")
+            ->offset(3)
+            ->orderBy("id", "DESC")
+            ->toSQL();
+    }
+
     public function testPage()
     {
         $q = $this->getBuilder()
@@ -125,6 +135,26 @@ final class QueryBuilderTest extends TestCase
             ->setParam("name", "Product 1")
             ->fetch("city");
         $this->assertEquals("Ville 1", $city);
+    }
+
+    public function testFetchAll()
+    {
+        $products = $this->getBuilder()
+            ->from("products")
+            ->where("name = :name")
+            ->setParam("name", "Product 1")
+            ->fetchAll();
+        $this->assertEquals("Ville 1", $products[0]['city']);
+    }
+
+    public function testFetchAllIfNoData()
+    {
+        $products = $this->getBuilder()
+            ->from("products")
+            ->where("name = :name")
+            ->setParam("name", "azer")
+            ->fetchAll();
+        $this->assertEmpty($products);
     }
 
     public function testFetchWithInvalidRow()

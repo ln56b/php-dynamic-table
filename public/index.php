@@ -1,51 +1,45 @@
 <?php
 
 use App\NumberHelper;
+use App\QueryBuilder;
 use App\TableHelper;
 use App\URLHelper;
 
 define('PER_PAGE', 20);
 
-require 'vendor/autoload.php';
-$pdo = new PDO("sqlite:./products.db", null, null, [
+require '../vendor/autoload.php';
+
+
+$pdo = new PDO("sqlite:../products.db", null, null, [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
 ]);
 
-$query = "SELECT * FROM products";
-$queryCount = "SELECT COUNT(id) as count FROM products";
-$params = [];
+$query = (new QueryBuilder($pdo))->from('products');
 $sortable = ["id", "name", "city", "price"];
 
 // Search by city
 if (!empty($_GET['q'])) {
-    $query .= " WHERE city LIKE :city";
-    $queryCount .= " WHERE city LIKE :city";
-    $params['city'] = "%" . $_GET['q'] . "%";
+    $query
+        ->where('city LIKE :city')
+        ->setParam('city', '%' . $_GET['q'] . '%');
 }
+
+$count = (clone $query)->count();
 
 // Sorting
 if (!empty($_GET['sort']) && in_array($_GET['sort'], $sortable)) {
-    $direction = $_GET['dir'] ?? 'asc';
-    if (!in_array($direction, ['asc', 'desc'])) {
-        $direction = 'asc';
-    }
-    $query .= " ORDER BY " . $_GET['sort'] . " $direction";
+   $query->orderBy($_GET['sort'], $_GET['dir'] ?? 'asc');
 }
 
 // Pagination
-$page = (int)($_GET['p'] ?? 1);
-$offset = ($page - 1) * PER_PAGE;
+$page = $_GET['p'] ?? 1;
+$query
+    ->limit(PER_PAGE)
+    ->page($page);
 
-$query .= " LIMIT " . PER_PAGE . " OFFSET $offset";
+$products = $query->fetchAll();
 
-$statement = $pdo->prepare($query);
-$statement->execute($params);
-$products = $statement->fetchAll();
-
-$statement = $pdo->prepare($queryCount);
-$statement->execute($params);
-$count = (int)$statement->fetch()['count'];
 $pages = ceil($count / PER_PAGE);
 ?>
 
