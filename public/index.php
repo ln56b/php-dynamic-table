@@ -2,13 +2,11 @@
 
 use App\NumberHelper;
 use App\QueryBuilder;
-use App\TableHelper;
-use App\URLHelper;
+use App\Table;
 
 define('PER_PAGE', 20);
 
 require '../vendor/autoload.php';
-
 
 $pdo = new PDO("sqlite:../products.db", null, null, [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -16,7 +14,6 @@ $pdo = new PDO("sqlite:../products.db", null, null, [
 ]);
 
 $query = (new QueryBuilder($pdo))->from('products');
-$sortable = ["id", "name", "city", "price"];
 
 // Search by city
 if (!empty($_GET['q'])) {
@@ -25,22 +22,18 @@ if (!empty($_GET['q'])) {
         ->setParam('city', '%' . $_GET['q'] . '%');
 }
 
-$count = (clone $query)->count();
-
-// Sorting
-if (!empty($_GET['sort']) && in_array($_GET['sort'], $sortable)) {
-   $query->orderBy($_GET['sort'], $_GET['dir'] ?? 'asc');
-}
-
-// Pagination
-$page = $_GET['p'] ?? 1;
-$query
-    ->limit(PER_PAGE)
-    ->page($page);
-
-$products = $query->fetchAll();
-
-$pages = ceil($count / PER_PAGE);
+$table = (new Table($query, $_GET))
+->setColumns([
+    'id' => 'ID',
+    'name' => 'Name',
+    'city' => 'City',
+    'address' => 'Address',
+    'price' => 'Price'
+])
+->sortable('id', 'city')
+->format('price', function ($value) {
+    return NumberHelper::price($value);
+})
 ?>
 
 <!doctype html>
@@ -65,33 +58,7 @@ $pages = ceil($count / PER_PAGE);
     <button class="btn btn-primary">Search</button>
 </form>
 
-<table class="table table-striped">
-    <thead>
-    <tr>
-        <th><?= TableHelper::sort('id', 'ID', $_GET) ?></th>
-        <th><?= TableHelper::sort('name', 'Name', $_GET) ?></th>
-        <th><?= TableHelper::sort('price', 'Price', $_GET) ?></th>
-        <th><?= TableHelper::sort('city', 'City', $_GET) ?></th>
-        <th>Address</th>
-    </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($products as $product): ?>
-        <tr>
-            <td>#<?= $product['id'] ?></td>
-            <td><?= $product['name'] ?></td>
-            <td><?= NumberHelper::price($product['price']) ?></td>
-            <td><?= $product['city'] ?></td>
-            <td><?= $product['address'] ?></td>
-        </tr>
-    <?php endforeach; ?>
-    </tbody>
-</table>
-<?php if ($pages > 1 && $page > 1): ?>
-    <a href="?<?= URLHelper::withParam($_GET, "p", $page - 1) ?>" class="btn btn-primary">Previous page</a>
-<?php endif ?>
-<?php if ($pages > 1 && $page < $pages) : ?>
-    <a href="?<?= URLHelper::withParam($_GET, "p", $page + 1) ?>" class="btn btn-primary">Next page</a>
-<?php endif ?>
+<?php $table->render() ?>
+
 </body>
 </html>
